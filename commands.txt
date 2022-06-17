@@ -1,2 +1,6 @@
  pyuic6 main.ui -o mydesign.py
 C:\Python310\python.exe learnpyqt.py
+
+
+https://pyqtgraph.readthedocs.io
+https://matplotlib.org/

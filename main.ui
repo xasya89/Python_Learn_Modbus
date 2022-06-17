@@ -43,7 +43,17 @@
       <x>20</x>
       <y>60</y>
       <width>631</width>
-      <height>391</height>
+      <height>191</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QTableWidget" name="tableOrders">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>300</y>
+      <width>761</width>
+      <height>251</height>
      </rect>
     </property>
    </widget>
