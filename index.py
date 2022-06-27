@@ -33,6 +33,9 @@ class ModbusOwen:
     @port.setter
     def port(self, port):
         self.__port=port
+        
+    def startProcess(self):
+        self.__c.write_single_register(0,1)
     
     def setTemp(self, val):
         self.__c.write_single_register(0,val)
@@ -41,3 +44,4 @@ class ModbusOwen:
         return self.__c.read_input_registers(0)[0]
 
 owen=ModbusOwen("10.0.6.10", 503)
+owen.startProcess()

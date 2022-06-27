@@ -1,43 +1,11 @@
 from datetime import datetime
 import sys
+import math
 from PyQt6 import QtCore, QtGui, QtWidgets
 
 from mainform import Ui_MainWindow
-
-class OrderTableModel(QtCore.QAbstractTableModel):
-    def __init__(self, data):
-        super(OrderTableModel, self).__init__()
-        self._data = data
-
-    def data(self, index, role):
-        if role == QtCore.Qt.ItemDataRole.DisplayRole:
-            value = self._data[index.row()][index.column()]
-            if isinstance(value, datetime):
-                return value.strftime("%d.%m.%Y")
-            return value
-        
-        if role == QtCore.Qt.ItemDataRole.ToolTipRole:
-            return str(self._data[index.row()][index.column()]) + " tooltip"
-        if role == QtCore.Qt.ItemDataRole.BackgroundRole and index.row() > 2:
-            return QtGui.QColor("green")
-        
-    def headerData(self, section: int, orientation: QtCore.Qt.Orientation, role: int = QtCore.Qt.ItemDataRole.DisplayRole):
-        if orientation == QtCore.Qt.Orientation.Horizontal and role == QtCore.Qt.ItemDataRole.DisplayRole:
-            match section:
-                case 0:
-                    return "Заказ"
-                case 1:
-                    return "Дата"
-                case 2:
-                    return "Заказчик"
-            return 'Columning {}'.format(section + 1)
-        return super().headerData(section, orientation, role)
-    
-    def rowCount(self, index):
-        return len(self._data)
-
-    def columnCount(self, index):
-        return len(self._data[0])
+from modbus import ModbusOwen
+from orderTableModel import OrderTableModel
 
 class MyHeaderView(QtWidgets.QHeaderView):
     def __init__(self,parent):
@@ -78,8 +46,18 @@ class mainWindow(QtWidgets.QMainWindow):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         
+        self.modbus=ModbusOwen()
+        self.statusProcess=self.modbus.getStatusProcess()
+        
+        
+        timer = QtCore.QTimer(self)
+        timer.timeout.connect(self.controlHeating)
+        timer.start(1000)
+        
+        self.ui.startButton.clicked.connect(self.processStart)
+        self.timeStartHeating=datetime.now()
+        
         self.getOrders()
-        self.ui.curTempLabel.value
         
     def getOrders(self):
         data = [
@@ -101,10 +79,40 @@ class mainWindow(QtWidgets.QMainWindow):
     def orderChange(self, clickedIndex):
         print(clickedIndex.row())
         
-        x = [0, 15, 20, 45, 55, 110, 130]
-        y = [0, 15, 75, 75, 140, 140, 0]
+        self.plotTime = [0, 1, 2, 4, 5, 6, 9]
+        self.plotTemp = [0, 15, 75, 75, 140, 140, 0]
         self.ui.graphHeatingPlot.clear()
-        self.ui.graphHeatingPlot.plot(x,y)
+        self.ui.graphHeatingPlot.plot(self.plotTime,self.plotTemp)
+    
+    def processStart(self):
+        self.timeStartHeating=datetime.now()
+        self.plotPosition=1
+        self.modbus.startProcess()
+    
+    def controlHeating(self):   
+        dTime = (datetime.now() - self.timeStartHeating).seconds / 60
+        result = self.modbus.getTemp()
+        settemp = float(result[1])
+        curtemp = float(result[0])
+        self.ui.curTempLabel.display(curtemp)
+        self.ui.targetTempLabel.display(settemp)
+        self.ui.timeWorkLabel.display(math.floor(dTime))
+        # Нагрев
+        if(self.modbus.getStatusProcess()==2):
+            # Включаем охлаждение
+            if self.plotPosition == (len(self.plotTime) - 2):
+                self.modbus.startCooling()
+                return
+            curtime = datetime.now()
+            if self.plotTime[self.plotPosition] < dTime:
+                self.plotPosition+=1
+            
+            dTemp = (self.plotTemp[self.plotPosition] - self.plotTemp[self.plotPosition - 1]) / (self.plotTime[self.plotPosition] - self.plotTime[self.plotPosition - 1])
+            if(dTemp==0):
+                dTemp = self.plotTemp[self.plotPosition]
+            print(dTemp)
+            self.modbus.setTemp(int(dTemp))
+         
 
 app = QtWidgets.QApplication([])
 application = mainWindow()
